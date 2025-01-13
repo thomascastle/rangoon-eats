@@ -4,20 +4,22 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/thomascastle/rangoon-eats/internal/structuredlog"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 func main() {
+	logger := structuredlog.New(os.Stdout, structuredlog.LevelInfo)
+
 	if e := godotenv.Load(); e != nil {
-		log.Fatal("error: failed to load .env file")
+		logger.Fatal(e, nil)
 	}
 
 	env := os.Getenv("APP_ENV")
@@ -30,7 +32,7 @@ func main() {
 
 		data_JSON, e := json.Marshal(data)
 		if e != nil {
-			log.Fatal(e)
+			logger.Fatal(e, nil)
 		}
 		w.Header().Add("Content-Type", "application/json")
 		w.WriteHeader(200)
@@ -39,14 +41,14 @@ func main() {
 
 	_, e := openDB()
 	if e != nil {
-		log.Fatal(e)
+		logger.Fatal(e, nil)
 	}
 
-	log.Println("database connection pool established")
+	logger.Info("database connection pool established", nil)
 
-	log.Println("server started")
+	logger.Info("server started", nil)
 	if e := http.ListenAndServe(":4000", nil); e != nil {
-		log.Fatal(e)
+		logger.Fatal(e, nil)
 	}
 }
 
