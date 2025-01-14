@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -45,6 +44,11 @@ func configure() (configuration, error) {
 	return config, nil
 }
 
+type application struct {
+	config configuration
+	logger *structuredlog.Logger
+}
+
 func main() {
 	logger := structuredlog.New(os.Stdout, structuredlog.LevelInfo)
 
@@ -75,8 +79,12 @@ func main() {
 
 	logger.Info("database connection pool established", nil)
 
-	logger.Info("server started", map[string]string{"addr": fmt.Sprintf(":%d", config.port), "env": config.env})
-	if e := http.ListenAndServe(fmt.Sprintf(":%d", config.port), nil); e != nil {
+	app := application{
+		config: config,
+		logger: logger,
+	}
+
+	if e := app.serve(); e != nil {
 		logger.Fatal(e, nil)
 	}
 }
