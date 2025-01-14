@@ -2,8 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
-	"net/http"
 	"os"
 	"strconv"
 
@@ -56,21 +54,6 @@ func main() {
 	if e != nil {
 		logger.Fatal(e, nil)
 	}
-
-	http.HandleFunc("/health-check", func(w http.ResponseWriter, r *http.Request) {
-		data := map[string]string{
-			"env":    config.env,
-			"status": "available",
-		}
-
-		data_JSON, e := json.Marshal(data)
-		if e != nil {
-			logger.Fatal(e, nil)
-		}
-		w.Header().Add("Content-Type", "application/json")
-		w.WriteHeader(200)
-		w.Write(data_JSON)
-	})
 
 	_, e = openDB(config)
 	if e != nil {
