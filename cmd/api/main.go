@@ -15,18 +15,47 @@ import (
 	"gorm.io/gorm"
 )
 
+type configuration struct {
+	db struct {
+		dsn string
+	}
+	env  string
+	port int
+}
+
+func configure() (configuration, error) {
+	if e := godotenv.Load(); e != nil {
+		return configuration{}, e
+	}
+
+	dsn := os.Getenv("DSN")
+
+	env := os.Getenv("ENV")
+
+	port, e := strconv.Atoi(os.Getenv("PORT"))
+	if e != nil {
+		return configuration{}, e
+	}
+
+	var config configuration
+	config.db.dsn = dsn
+	config.env = env
+	config.port = port
+
+	return config, nil
+}
+
 func main() {
 	logger := structuredlog.New(os.Stdout, structuredlog.LevelInfo)
 
-	if e := godotenv.Load(); e != nil {
+	config, e := configure()
+	if e != nil {
 		logger.Fatal(e, nil)
 	}
 
-	env := os.Getenv("APP_ENV")
-
 	http.HandleFunc("/health-check", func(w http.ResponseWriter, r *http.Request) {
 		data := map[string]string{
-			"env":    env,
+			"env":    config.env,
 			"status": "available",
 		}
 
@@ -39,32 +68,21 @@ func main() {
 		w.Write(data_JSON)
 	})
 
-	_, e := openDB()
+	_, e = openDB(config)
 	if e != nil {
 		logger.Fatal(e, nil)
 	}
 
 	logger.Info("database connection pool established", nil)
 
-	logger.Info("server started", nil)
-	if e := http.ListenAndServe(":4000", nil); e != nil {
+	logger.Info("server started", map[string]string{"addr": fmt.Sprintf(":%d", config.port), "env": config.env})
+	if e := http.ListenAndServe(fmt.Sprintf(":%d", config.port), nil); e != nil {
 		logger.Fatal(e, nil)
 	}
 }
 
-func openDB() (*gorm.DB, error) {
-	host := os.Getenv("DB_HOST")
-	name := os.Getenv("DB_NAME")
-	password := os.Getenv("DB_PASSWORD")
-	port, e := strconv.Atoi(os.Getenv("DB_PORT"))
-	if e != nil {
-		return nil, e
-	}
-	username := os.Getenv("DB_USERNAME")
-
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", username, password, host, port, name)
-
-	db, e := openUnderlyingConnection(dsn)
+func openDB(config configuration) (*gorm.DB, error) {
+	db, e := openUnderlyingConnection(config.db.dsn)
 	if e != nil {
 		return nil, e
 	}
